@@ -586,10 +586,10 @@ def build_html():
     t = sub1(t, r'<div class="num">FR &middot; PT</div>',
              '<div class="num num-wide">FR &middot; PT &middot; PL</div>',
              "territories stat card")
-    t = sub1(t, r'<div class="num">450k</div>', '<div class="num">500k</div>',
-             "slide 4 unique viewers")
+    t = sub1(t, r'<div class="num">450k</div>', '<div class="num">575k</div>',
+             "slide 5 unique viewers")
     t = sub1(t, r'<div class="dist-metric-num">450<span class="dist-metric-unit">k</span></div>',
-             '<div class="dist-metric-num">500<span class="dist-metric-unit">k</span></div>',
+             '<div class="dist-metric-num">575<span class="dist-metric-unit">k</span></div>',
              "modal unique viewers")
 
     # Broadcast modal: swap the streaming section for the Polish feed.
@@ -687,6 +687,9 @@ def build_html():
              "one (1) PFL Event hosted within the Territory, plus three (3) "
              "Europe-based Events hosted outside the Territory</li>",
              "2027 franchises & events")
+    t = sub1(t, r"<li><strong>2026:</strong> &euro;150,000</li>",
+             "<li><strong>2026:</strong> &euro;175,000</li>",
+             "year 1 fee")
     t = sub1(t, r"<li><strong>2027:</strong> &euro;300,000</li>",
              "<li><strong>2027:</strong> &euro;400,000 &mdash; inclusive of "
              "all four (4) Events and of virtual overlay branding at the "
@@ -855,13 +858,209 @@ def build_html():
 
 
 
+
+    # -- social modal territory + commercials concision pass ---------------
+    # The social modal still read as a two-market 2026 sheet; scoped so the
+    # same phrases in the other modals aren't touched.
+    s0 = t.index('<div class="dist-modal terms-modal" id="socialDistModal"')
+    s1 = t.index('<div class="dist-modal terms-modal"', s0 + 10)
+    social = t[s0:s1]
+    for old, new, label in [
+        ("PFL × Betclic · 2026 · France &amp; Portugal",
+         "PFL × Betclic · 2026&ndash;2027 · France, Portugal &amp; Poland", "meta"),
+        ("France &amp; Portugal · per fight card",
+         "France, Portugal &amp; Poland · per fight card", "section sub"),
+        ("across PFL FR &amp; PT channels",
+         "across PFL FR, PT &amp; PL channels", "metric context"),
+        ("handles across France &amp; Portugal",
+         "handles across France, Portugal and Poland", "distribution note"),
+        ("<div>2026 · France &amp; Portugal</div>",
+         "<div>2026&ndash;2027 · France, Portugal &amp; Poland</div>", "footer"),
+    ]:
+        check(old in social, f"social modal {label} present")
+        social = social.replace(old, new)
+    t = t[:s0] + social + t[s1:]
+
+    # Concision pass across the commercial terms.
+    TIGHTEN = [
+        ("<li><strong>2027:</strong> Four (4) Events in total &mdash; one (1) "
+         "PFL Event hosted within the Territory, plus three (3) Europe-based "
+         "Events hosted outside the Territory</li>",
+         "<li><strong>2027:</strong> Four (4) Events &mdash; one (1) "
+         "in-Territory PFL Event, plus three (3) Europe-based Events outside "
+         "the Territory</li>"),
+        ("France and Portugal, with <strong>Poland added as a market from "
+         "1 January 2027</strong>\n            <ul>",
+         "<ul>"),
+        ("<li><strong>2027:</strong> &euro;400,000 &mdash; inclusive of all "
+         "four (4) Events and of virtual overlay branding at the three (3) "
+         "out-of-Territory Events</li>",
+         "<li><strong>2027:</strong> &euro;400,000 &mdash; inclusive of all "
+         "four (4) Events and of virtual overlay at the three (3) "
+         "out-of-Territory Events</li>"),
+        ("<li>Virtual overlay branding at any further out-of-Territory event "
+         "&mdash; in 2026, or beyond the three (3) included in 2027 &mdash; "
+         "&euro;40,000 per event, per market</li>",
+         "<li>Additional out-of-Territory events: &euro;40,000 per event, per "
+         "market</li>"),
+        ("<dd>One (1) Event hosted within the Territory &mdash; PFL Lyon, LDLC "
+         "Arena, December 19, 2026. Betclic to receive <strong>Presenting "
+         "Partner status</strong> and <strong>exclusive betting category "
+         "rights</strong> in France and Portugal.</dd>",
+         "<dd>PFL Lyon, LDLC Arena, 19 December 2026. <strong>Presenting "
+         "Partner status</strong> and <strong>exclusive betting category "
+         "rights</strong> in France and Portugal.</dd>"),
+        ("<li><strong>One (1) in-Territory Event</strong>, hosted in France "
+         "&mdash; Presenting Partner status and the full asset package set out "
+         "under <em>Partnership Assets</em> below.</li>",
+         "<li><strong>One (1) in-Territory Event</strong> in France &mdash; "
+         "Presenting Partner status and the full asset package below.</li>"),
+        ("virtual overlay branding, broadcast integrations, social content "
+         "distribution, digital &amp; video content access and VIP "
+         "hospitality. These Events are broadcast into the Betclic "
+         "Territories, where <strong>Betclic will be the exclusive betting "
+         "partner in the broadcast</strong>.",
+         "virtual overlay, broadcast integrations, social, content access and "
+         "VIP hospitality. Broadcast into the Betclic Territories, where "
+         "<strong>Betclic is the exclusive betting partner in the "
+         "broadcast</strong>."),
+        ("<li>2026 &mdash; &lsquo;Exclusive Betting Partner of PFL in France "
+         "&amp; Portugal&rsquo;; 2027 &mdash; &lsquo;Exclusive Betting Partner "
+         "of PFL in France, Portugal &amp; Poland&rsquo;; 2026 &mdash; "
+         "&lsquo;Presenting Partner of PFL Lyon&rsquo;, or other mutually "
+         "agreed designations</li>",
+         "<li>&lsquo;Exclusive Betting Partner of PFL&rsquo; &mdash; France "
+         "&amp; Portugal (2026); France, Portugal &amp; Poland (2027)</li>\n"
+         "              <li>&lsquo;Presenting Partner of PFL Lyon&rsquo;, or "
+         "other mutually agreed designations</li>"),
+        ("<li>Betclic to receive access to custom broadcast opportunities per "
+         "event, which may include promotional billboards, lower third "
+         "on-screen / Fight Presenter / Tale of the Tape graphic, and live "
+         "odds integration</li>",
+         "<li>Custom broadcast opportunities per event: promotional "
+         "billboards, lower thirds, Fight Presenter and Tale of the Tape "
+         "graphics, live odds integration</li>"),
+        ("<li>From 2027, broadcast integrations apply at all four (4) Events "
+         "&mdash; the in-Territory Event and the three (3) Europe-based Events "
+         "hosted outside the Territory</li>",
+         "<li>From 2027, applies at all four (4) Events, in and out of "
+         "Territory</li>"),
+        ("<li>Betclic mark alongside the Fight Clock for the first thirty (30) "
+         "seconds of all Main and Co-Main Events</li>",
+         "<li>Betclic mark on the Fight Clock for the first thirty (30) "
+         "seconds of Main and Co-Main Events</li>"),
+        ("<li><strong>Included within the 2027 fee</strong> at the three (3) "
+         "Europe-based Events hosted outside the Territory</li>",
+         "<li><strong>Included in the 2027 fee</strong> at the three (3) "
+         "out-of-Territory European Events</li>"),
+        ("<li>Virtual logo placement at out-of-Territory events on one (1) "
+         "large canvas, one (1) vertical bumper and one (1) inner middle "
+         "canvas position</li>",
+         "<li>Virtual logo on one (1) large canvas, one (1) vertical bumper "
+         "and one (1) inner middle canvas position</li>"),
+        ("<li><strong>Betclic will be the exclusive betting operator featured "
+         "on the canvas</strong>, and the exclusive betting partner in the "
+         "broadcast of these Events into the Betclic Territories</li>",
+         "<li><strong>Exclusive betting operator on the canvas</strong>, and "
+         "exclusive betting partner in the broadcast into the Betclic "
+         "Territories</li>"),
+        ("<li>Further out-of-Territory events beyond the three (3) included: "
+         "&euro;40,000 per event, per market</li>",
+         "<li>Additional events beyond the three (3) included: &euro;40,000 "
+         "per event, per market</li>"),
+        ("<li>Wristbands will light up throughout the night for each Sponsored "
+         "Event to create in-arena fan engagement opportunities reasonably "
+         "satisfactory to Sponsor</li>",
+         "<li>Wristbands light up through the night, creating in-arena fan "
+         "engagement moments</li>"),
+        ("<li>All content may be used across Betclic-owned channels, with "
+         "specified rules</li>",
+         "<li>Usable across Betclic-owned channels, subject to agreed "
+         "rules</li>"),
+        ("<li>Betclic will receive non-exclusive live event Watch &amp; Bet "
+         "rights during the Term &mdash; e.g. live event stream for "
+         "distribution on Brand platforms, via the PFL</li>",
+         "<li>Non-exclusive live event Watch &amp; Bet rights for the Term "
+         "&mdash; live event stream for distribution on Betclic platforms, "
+         "via PFL</li>"),
+        ("<li>From 2027, the per-event allocation applies at all four (4) "
+         "Events, in and out of Territory</li>",
+         "<li>From 2027, applies at all four (4) Events, in and out of "
+         "Territory</li>"),
+        ("<li>Additional ideas may include: on stage + meet and greet at "
+         "weigh-ins; hosted backstage tour during fight night; invitation to "
+         "press conferences, weigh-ins and face-offs</li>",
+         "<li>Optional extras: on-stage meet and greet at weigh-ins; backstage "
+         "tour on fight night; access to press conferences and face-offs</li>"),
+        ("<li>For each year of the partnership, PFL will provide Betclic with "
+         "an Account Director / point-of-contact for turnkey execution of the "
+         "partnership</li>",
+         "<li>A dedicated PFL Account Director for each year of the "
+         "partnership</li>"),
+    ]
+    for old, new in TIGHTEN:
+        check(old in t, f"tighten target present: {old[:52]}…")
+        t = t.replace(old, new, 1)
+
+
+    # -- 2028 added: 2027 terms carried forward at a 5% uplift -------------
+    EXTEND_2028 = [
+        ('<dt>Term<span class="terms-grid-sub">2 years</span></dt>',
+         '<dt>Term<span class="terms-grid-sub">3 years</span></dt>'),
+        ("<dd>Two-year partnership (2026&ndash;2027).",
+         "<dd>Three-year partnership (2026&ndash;2028)."),
+        ("<li>Year 2: January 1, 2027 &ndash; December 31, 2027</li>",
+         "<li>Year 2: January 1, 2027 &ndash; December 31, 2027</li>\n"
+         "              <li>Year 3: January 1, 2028 &ndash; December 31, 2028</li>"),
+        ("<li><strong>2027:</strong> Four (4) Events &mdash; one (1) "
+         "in-Territory PFL Event, plus three (3) Europe-based Events outside "
+         "the Territory</li>",
+         "<li><strong>2027:</strong> Four (4) Events &mdash; one (1) "
+         "in-Territory PFL Event, plus three (3) Europe-based Events outside "
+         "the Territory</li>\n"
+         "              <li><strong>2028:</strong> As 2027 &mdash; four (4) "
+         "Events on the same terms</li>"),
+        ("<li><strong>2027:</strong> France, Portugal and Poland</li>",
+         "<li><strong>2027:</strong> France, Portugal and Poland</li>\n"
+         "              <li><strong>2028:</strong> France, Portugal and "
+         "Poland</li>"),
+        ("<li><strong>2027:</strong> &euro;400,000 &mdash; inclusive of all "
+         "four (4) Events and of virtual overlay at the three (3) "
+         "out-of-Territory Events</li>",
+         "<li><strong>2027:</strong> &euro;400,000 &mdash; inclusive of all "
+         "four (4) Events and of virtual overlay at the three (3) "
+         "out-of-Territory Events</li>\n"
+         "              <li><strong>2028:</strong> &euro;420,000 &mdash; 2027 "
+         "terms carried forward, with a 5% uplift on the annual fee</li>"),
+        ('<dt>From Jan 1, 2027<span class="terms-grid-sub">four events p.a.'
+         '</span></dt>',
+         '<dt>From Jan 1, 2027<span class="terms-grid-sub">four events p.a. '
+         '&middot; 2027 &amp; 2028</span></dt>'),
+        ("<li>&lsquo;Exclusive Betting Partner of PFL&rsquo; &mdash; France "
+         "&amp; Portugal (2026); France, Portugal &amp; Poland (2027)</li>",
+         "<li>&lsquo;Exclusive Betting Partner of PFL&rsquo; &mdash; France "
+         "&amp; Portugal (2026); France, Portugal &amp; Poland (2027 &amp; "
+         "2028)</li>"),
+        ('<div class="terms-print-meta">2026–2027 · France, Portugal &amp; '
+         'Poland <span style="opacity:.7">(Poland from 2027)</span></div>',
+         '<div class="terms-print-meta">2026–2028 · France, Portugal &amp; '
+         'Poland <span style="opacity:.7">(Poland from 2027)</span></div>'),
+        ("<div>PFL × Betclic · Heads of Terms · Confidential</div>\n"
+         "        <div>2026–2027 · France, Portugal &amp; Poland</div>",
+         "<div>PFL × Betclic · Heads of Terms · Confidential</div>\n"
+         "        <div>2026–2028 · France, Portugal &amp; Poland</div>"),
+    ]
+    for old, new in EXTEND_2028:
+        check(old in t, f"2028 target present: {old[:48]}…")
+        t = t.replace(old, new, 1)
+
     p.write_text(t, encoding="utf-8")
 
     check("NetBet" not in t and "netbet" not in t, "no NetBet left in HTML")
     check(not re.search(r"\bUK\b|United Kingdom", t), "no UK left in HTML")
     check("talksport" not in t.lower(), "no talkSPORT left in HTML")
     check(t.count("assets/logos/betclic.png") == 5, "5 Betclic logo refs")
-    check(t.count("France &amp; Portugal") >= 6, "territory copy updated")
+    check(t.count("France &amp; Portugal") >= 2, "territory copy updated")
     print("  index.html rewritten")
 
 
@@ -1068,16 +1267,22 @@ def audit():
             orphans.append(rel)
     check(not orphans, f"orphaned assets: {orphans}")
 
+    check("&euro;175,000" in html, "year 1 at EUR175k")
+    check("&euro;150,000" not in html, "old year 1 fee gone")
     check("&euro;400,000" in html, "year 2 at EUR400k")
+    check("&euro;420,000" in html, "year 3 at EUR420k")
+    check("Three-year partnership" in html, "term extended")
+    check(html.count("<strong>2028:</strong>") == 3, "2028 rows added")
     check("&euro;35,000" not in html, "old overlay rate gone")
     check("in-Territory Event only" not in html, "social scope reversed")
     check("PFL Lyon 2026 &middot; PFL Lyon 2027" in html, "wristband scope")
     check("all PFL / MMA Events across the term" in html, "content scope")
     check("&euro;200,000" not in html, "old year 2 fee gone")
-    check(html.count("out-of-Territory") >= 6, "out-of-Territory copy")
+    check(html.count("out-of-Territory") >= 5, "out-of-Territory copy")
     check("youtube.png" not in html, "YouTube logo dereferenced")
     check(html.count("Poland") >= 8, "Poland copy present")
-    check("450" not in html, "viewer figure updated everywhere")
+    check("575k" in html and "450" not in html and "500k" not in html,
+          "viewer figure updated everywhere")
     check("Three (3) VIP" not in html, "VIP allocation updated")
     check("Event in Portugal" not in html, "PT in-territory event removed")
     check(html.count("data-slide=") == 19, "19 slides present")
