@@ -4749,80 +4749,114 @@ body.terms-modal-open { overflow: hidden; }
 
 /* Presenting Partner asset grid — slide 4 (Awareness) */
 .pp-wrap {
-    position: relative;
-    z-index: 2;
-    height: 100%;
+    position: relative; z-index: 2; height: 100%;
     padding: 46px 80px 54px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    display: flex; flex-direction: column; justify-content: center;
 }
-.pp-header {
-    text-align: center;
-    margin-bottom: 26px;
-}
-.pp-header .slide-subtitle {
-    margin-left: auto;
-    margin-right: auto;
-}
+.pp-header { text-align: center; margin-bottom: 30px; }
+.pp-header .slide-subtitle { margin-left: auto; margin-right: auto; }
 .pp-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    width: 100%;
-    max-width: 1180px;
-    margin: 0 auto;
-    align-items: stretch;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+    width: 100%; max-width: 1180px; margin: 0 auto; align-items: stretch;
 }
 .pp-card {
+    position: relative;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.08);
-    border-left: 2px solid var(--ls-green);
+    border-left: 3px solid var(--ls-green);
     border-radius: 4px;
-    padding: 15px 18px 17px;
+    padding: 22px 22px 20px;
+    min-height: 150px;
+    display: flex; flex-direction: column;
+    text-align: left; font: inherit; color: inherit;
 }
 .pp-num {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    color: var(--ls-green);
-    margin-bottom: 5px;
+    font-family: var(--font-display); font-weight: 700; font-size: 13px;
+    letter-spacing: 0.08em; color: var(--ls-green); margin-bottom: 10px;
 }
 .pp-card h3 {
-    font-family: var(--font-cond);
-    font-weight: 600;
-    font-size: 15px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #fff;
-    margin: 0 0 10px;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 30px; line-height: 1.06; letter-spacing: 0.005em;
+    text-transform: uppercase; color: #fff; margin: 0;
 }
-.pp-card ul { margin: 0; padding: 0; list-style: none; }
-.pp-card li {
-    position: relative;
-    padding-left: 14px;
-    font-size: 12.5px;
-    line-height: 1.5;
-    color: rgba(255,255,255,0.66);
-    margin-bottom: 6px;
+.pp-cta {
+    margin-top: auto; padding-top: 16px;
+    font-family: var(--font-cond); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    display: flex; align-items: center; gap: 8px;
+    transition: color 0.18s ease;
 }
-.pp-card li:last-child { margin-bottom: 0; }
-.pp-card li::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 7px;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--ls-green);
+.pp-arrow { transition: transform 0.18s ease; display: inline-block; }
+.pp-card-live { cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
+.pp-card-live:hover, .pp-card-live:focus-visible {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.18);
+    border-left-color: var(--ls-green);
+    transform: translateY(-2px);
+    outline: none;
+}
+.pp-card-live:hover .pp-cta, .pp-card-live:focus-visible .pp-cta { color: var(--ls-green); }
+.pp-card-live:hover .pp-arrow { transform: translateX(3px); }
+
+/* In-situ example modals */
+.pp-modal {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+.pp-modal.is-open { opacity: 1; visibility: visible; }
+.pp-modal-backdrop { position: absolute; inset: 0; background: rgba(4,6,14,0.88); backdrop-filter: blur(4px); }
+.pp-modal-inner {
+    position: relative; z-index: 2;
+    width: min(1220px, 92vw); max-height: 88vh; overflow-y: auto;
+    background: #0c1020;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 30px 34px 34px;
+}
+.pp-modal-head { margin-bottom: 22px; padding-right: 50px; }
+.pp-modal-eyebrow {
+    font-family: var(--font-cond); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--ls-green); margin-bottom: 8px;
+}
+.pp-modal-head h3 {
+    font-family: var(--font-display); font-weight: 700; font-size: 30px;
+    text-transform: uppercase; color: #fff; margin: 0; line-height: 1.1;
+}
+.pp-modal-close {
+    position: absolute; top: 20px; right: 22px; z-index: 3;
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
+    color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
+    transition: background 0.18s ease;
+}
+.pp-modal-close:hover { background: var(--ls-green); }
+.pp-modal-grid { display: grid; gap: 18px; }
+.pp-modal-grid.pp-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.pp-modal-grid.pp-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.pp-cell { margin: 0; }
+.pp-cell img, .pp-cell video {
+    width: 100%; height: 300px; object-fit: contain;
+    background: #05070f; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px; display: block;
+}
+.pp-cell figcaption {
+    margin-top: 10px;
+    font-family: var(--font-cond); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(255,255,255,0.62);
 }
 @media (max-width: 1100px) {
     .pp-wrap { padding: 34px 40px 44px; }
-    .pp-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .pp-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .pp-card h3 { font-size: 25px; }
+    .pp-modal-grid.pp-cols-3 { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 700px) {
     .pp-grid { grid-template-columns: 1fr; }
-    .pp-card li { font-size: 12px; }
+    .pp-card { min-height: 0; }
+    .pp-modal-grid.pp-cols-2, .pp-modal-grid.pp-cols-3 { grid-template-columns: 1fr; }
+    .pp-cell img, .pp-cell video { height: 220px; }
 }

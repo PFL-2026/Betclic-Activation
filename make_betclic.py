@@ -19,7 +19,7 @@ from pathlib import Path
 import cairosvg
 import numpy as np
 
-from pp_slide import PP_CSS, PP_SLIDE
+from pp_slide import PP_CSS, PP_JS, PP_MODALS, PP_SLIDE
 from PIL import Image
 from scipy.ndimage import binary_dilation, uniform_filter
 
@@ -321,6 +321,69 @@ def patch_competitor_branding():
           f"{len(COMPETITOR_MARKS)} inherited stills")
 
 
+# Presenting Partner "in situ" examples. Each entry: source file, output stem,
+# the caption shown in the modal, and which card it belongs to.
+PP_EXAMPLES = [
+    ("naming",    "GovX_Key_Art.png",             "pp_key_art",            "Key Art"),
+    ("naming",    "GovX_Event_Naming.png",        "pp_event_naming",       "Event Naming"),
+    ("broadcast", "GovX_Show_Presenter_1.mov",    "pp_show_presenter_1",   "Show Presenter 1"),
+    ("broadcast", "GovX_Show_Presenter_2.mov",    "pp_show_presenter_2",   "Show Presenter 2"),
+    ("broadcast", "Arkham_Tale_of_the_Tape.mov",  "pp_tale_of_the_tape",   "Tale of the Tape"),
+    ("arena",     "Canvas.JPG",                   "pp_canvas",             "Canvas"),
+    ("arena",     "External_LED_Bumper.JPG",      "pp_external_led_bumper","External LED Bumper"),
+    ("arena",     "LED_Screens.JPG",              "pp_led_screens",        "LED Screens"),
+    ("social",    "Main_Event_Presenter.png",     "pp_main_event_presenter","Main Event Presenter"),
+    ("social",    "Fighter_Presenter.png",        "pp_fighter_presenter",  "Fighter Presenter"),
+]
+
+PP_UPLOADS = ROOT / "pp_uploads"
+
+
+def build_pp_examples():
+    """Prepare the in-situ example media for the Presenting Partner modals.
+
+    The arena shots arrive as 6000x4000 camera files (~8MB each), so they are
+    resized and re-encoded; at modal size nothing above ~1600px is visible.
+    The .mov clips are remuxed to web-friendly mp4 with a poster frame each.
+    """
+    img_dir = OUT / "assets" / "images"
+    vid_dir = OUT / "assets" / "video"
+
+    for _, src_name, stem, _ in PP_EXAMPLES:
+        src = PP_UPLOADS / src_name
+        check(src.exists(), f"example asset present: {src_name}")
+        if not src.exists():
+            continue
+
+        if src.suffix.lower() == ".mov":
+            out = vid_dir / f"{stem}.mp4"
+            subprocess.run(
+                ["ffmpeg", "-y", "-loglevel", "error", "-i", str(src),
+                 "-c:v", "libx264", "-preset", "slow", "-crf", "26",
+                 "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                 "-an", str(out)],
+                check=True)
+            subprocess.run(
+                ["ffmpeg", "-y", "-loglevel", "error", "-i", str(src),
+                 "-frames:v", "1", "-q:v", "4",
+                 str(img_dir / f"{stem}_poster.jpg")],
+                check=True)
+            check(out.exists() and out.stat().st_size < 3_000_000,
+                  f"{stem}.mp4 encoded and under 3MB")
+        else:
+            im = Image.open(src).convert("RGB")
+            if max(im.size) > 1600:
+                s = 1600 / max(im.size)
+                im = im.resize((round(im.width * s), round(im.height * s)),
+                               Image.LANCZOS)
+            out = img_dir / f"{stem}.jpg"
+            im.save(out, "JPEG", quality=82, optimize=True, progressive=True)
+            check(out.stat().st_size < 700_000,
+                  f"{stem}.jpg under 700KB ({out.stat().st_size // 1024}KB)")
+
+    print(f"  presenting-partner examples -> {len(PP_EXAMPLES)} assets")
+
+
 def build_logos():
     logo_dir = OUT / "assets" / "logos"
     src = Image.open(BC / "logo_pack" / "Betclic logo.png")
@@ -488,6 +551,13 @@ def build_html():
     check(marker in t, "insertion point located")
     t = sub1(t, re.escape(marker), lambda m: PP_SLIDE + marker,
              "insert Presenting Partner slide")
+
+    modal_anchor = '<!-- === Presenting Partner example modals'
+    check(modal_anchor not in t, "modals not already present")
+    wb_anchor = '<div class="wb-video-modal" id="wristbandModal"'
+    check(wb_anchor in t, "modal insertion point located")
+    t = sub1(t, re.escape(wb_anchor), lambda m: PP_MODALS + wb_anchor,
+             "insert Presenting Partner modals")
 
     # Section nav targets shift for every section after Awareness.
     for sec, old_target in ((3, 9), (4, 14), (5, 17), (6, 18)):
@@ -886,6 +956,18 @@ def build_js():
              "{ idx: 6, slides: [19] }", "section 6 range")
     t = sub1(t, r"\[data-slide=\"16\"\] \.wb-frame",
              '[data-slide="17"] .wb-frame', "watch & bet slide reference")
+    t = sub1(t, r"(    const fgcModal = document\.getElementById\('fgcModal'\);\n)",
+             r"\1    const ppModals = document.querySelectorAll('.pp-modal');\n",
+             "pp modal handle in key guard")
+    t = sub1(t, r"(    for \(const m of distModals\) \{\n"
+                r"      if \(m\.classList\.contains\('is-open'\)\) return;\n"
+                r"    \}\n)",
+             r"\1    for (const m of ppModals) {\n"
+             "      if (m.classList.contains('is-open')) return;\n    }\n",
+             "pp modal guard clause")
+    t = t.rstrip()
+    check(t.endswith("})();"), "deck.js IIFE terminator found")
+    t = t[:-len("})();")] + PP_JS + "})();\n"
     p.write_text(t, encoding="utf-8")
     check("NetBet" not in t and "netbet" not in t, "no NetBet left in JS")
     check(not re.search(r"\bUK\b|United Kingdom", t), "no UK left in JS")
@@ -928,7 +1010,12 @@ def audit():
     check("Event in Portugal" not in html, "PT in-territory event removed")
     check(html.count("data-slide=") == 19, "19 slides present")
     check("/ 18</div>" not in html, "no stale 18-slide numbering")
-    check(html.count("pp-card") == 6, "6 presenting-partner cards")
+    check(html.count('class="pp-card') == 6, "6 presenting-partner cards")
+    check(html.count("data-open-pp=") == 4, "4 clickable cards")
+    check(html.count('class="pp-modal"') == 4, "4 example modals")
+    check(html.count("pp-cell") == 10, "10 in-situ examples")
+    check("Ticketing &amp; Promotion" in html.replace("<br>", " "),
+          "card 6 renamed")
     check("Betclic" in html, "Betclic present in HTML")
     check("Portugal" in html, "Portugal present in HTML")
     check("make_netbet.py" not in os.listdir(OUT), "old build script removed")
@@ -942,6 +1029,7 @@ def main():
     build_images()
     patch_legacy_branding()
     patch_competitor_branding()
+    build_pp_examples()
     build_logos()
     build_icons()
     build_html()
