@@ -569,6 +569,7 @@ def build_html():
                  'data-section="%d" data-target="%d"' % (sec, old_target + 1),
                  f"nav target section {sec}")
 
+
     # -- Poland added as a 2027 market ------------------------------------
     # Slide 4: the third broadcast tile moves from a both-territories YouTube
     # stream to the Polish linear partner.
@@ -687,7 +688,7 @@ def build_html():
              "Europe-based Events hosted outside the Territory</li>",
              "2027 franchises & events")
     t = sub1(t, r"<li><strong>2027:</strong> &euro;300,000</li>",
-             "<li><strong>2027:</strong> &euro;350,000 &mdash; inclusive of "
+             "<li><strong>2027:</strong> &euro;400,000 &mdash; inclusive of "
              "all four (4) Events and of virtual overlay branding at the "
              "three (3) out-of-Territory Events</li>",
              "2027 fee")
@@ -789,6 +790,69 @@ def build_html():
              r"\1\n              <li>From 2027, the per-event allocation "
              "applies at all four (4) Events, in and out of Territory</li>",
              "asset 11 scope")
+
+    # -- 4 Sep amendments --------------------------------------------------
+    # Social now travels with the out-of-Territory Events, reversing the
+    # in-Territory-only scope set on 3 Sep. Both the guarantee and asset 05
+    # have to move together or the two sections contradict each other.
+    t = sub1(t,
+             r"virtual overlay branding, broadcast integrations, digital "
+             r"&amp; video content access and VIP hospitality\.",
+             "virtual overlay branding, broadcast integrations, social "
+             "content distribution, digital &amp; video content access and "
+             "VIP hospitality.",
+             "social added to out-of-Territory assets")
+    t = sub1(t,
+             r"\s*Social content distribution applies to the in-Territory "
+             r"Event only\.\n",
+             "\n", "remove in-Territory-only social line")
+    t = sub1(t,
+             r'<h4>Social Content Distribution <span class="terms-asset-sub">'
+             r'in-Territory Events only</span></h4>',
+             "<h4>Social Content Distribution</h4>",
+             "asset 05 heading scope")
+    t = sub1(t,
+             r"<li>A total of three \(3\) social media posts per in-Territory "
+             r"Event</li>\s*\n\s*<li>Social content distribution does not "
+             r"apply to out-of-Territory Events</li>",
+             "<li>A total of three (3) social media posts per Event</li>\n"
+             "              <li>From 2027, applies at all four (4) Events, in "
+             "and out of Territory</li>",
+             "asset 05 scope bullets")
+
+    # Overlay rate for anything beyond the included Events.
+    t = subN(t, r"&euro;35,000 per event, per market",
+             "&euro;40,000 per event, per market", "overlay rate")
+
+    # Wristbands are tied to the two PFL Lyon dates.
+    t = sub1(t, r"<h4>Sponsored LED Wristbands</h4>",
+             '<h4>Sponsored LED Wristbands <span class="terms-asset-sub">'
+             'PFL Lyon 2026 &middot; PFL Lyon 2027</span></h4>',
+             "asset 07 event scope")
+
+    # Content rights run across the whole PFL / MMA slate, not just the four.
+    t = sub1(t,
+             r"<li>From 2027, content access applies at all four \(4\) Events, "
+             r"in and out of Territory</li>",
+             "<li>Content access applies to all PFL / MMA Events across the "
+             "term, in and out of Territory</li>",
+             "asset 08 scope")
+
+    # Ambassadors are a secondary line item for Betclic — trimmed to essentials.
+    t = sub1(t,
+             r"<li>Access to two \(2\) fighters from the PFL roster per Event "
+             r"hosted within the Territory to act as Betclic ambassadors, "
+             r"costed as an additional line item</li>\s*\n\s*"
+             r"<li>PFL will work with Betclic to define roles &amp; "
+             r"responsibilities, which can include digital content support, "
+             r"fight kit logo inclusion, consumer-facing programs \(appearances "
+             r"/ autograph signings\), and other roles as mutually agreed</li>",
+             "<li>Two (2) PFL fighters per in-Territory Event as Betclic "
+             "ambassadors, costed as an additional line item</li>\n"
+             "              <li>Roles agreed with PFL &mdash; content, fight-kit "
+             "logo and appearances</li>",
+             "asset 10 condensed")
+
 
 
     p.write_text(t, encoding="utf-8")
@@ -1004,9 +1068,13 @@ def audit():
             orphans.append(rel)
     check(not orphans, f"orphaned assets: {orphans}")
 
-    check("&euro;350,000" in html, "year 2 at EUR350k")
+    check("&euro;400,000" in html, "year 2 at EUR400k")
+    check("&euro;35,000" not in html, "old overlay rate gone")
+    check("in-Territory Event only" not in html, "social scope reversed")
+    check("PFL Lyon 2026 &middot; PFL Lyon 2027" in html, "wristband scope")
+    check("all PFL / MMA Events across the term" in html, "content scope")
     check("&euro;200,000" not in html, "old year 2 fee gone")
-    check(html.count("out-of-Territory") >= 7, "out-of-Territory copy")
+    check(html.count("out-of-Territory") >= 6, "out-of-Territory copy")
     check("youtube.png" not in html, "YouTube logo dereferenced")
     check(html.count("Poland") >= 8, "Poland copy present")
     check("450" not in html, "viewer figure updated everywhere")
