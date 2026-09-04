@@ -12,11 +12,11 @@
   const SECTION_RANGES = [
     { idx: 0, slides: [1] },
     { idx: 1, slides: [2, 3] },
-    { idx: 2, slides: [4, 5, 6, 7, 8] },
-    { idx: 3, slides: [9, 10, 11, 12, 13] },
-    { idx: 4, slides: [14, 15, 16] },
-    { idx: 5, slides: [17] },
-    { idx: 6, slides: [18] },
+    { idx: 2, slides: [4, 5, 6, 7, 8, 9] },
+    { idx: 3, slides: [10, 11, 12, 13, 14] },
+    { idx: 4, slides: [15, 16, 17] },
+    { idx: 5, slides: [18] },
+    { idx: 6, slides: [19] },
   ];
 
   const TOTAL_LOGICAL = 18;
@@ -216,11 +216,15 @@
     const distModals = document.querySelectorAll('.dist-modal');
     const videoLightbox = document.getElementById('videoLightbox');
     const fgcModal = document.getElementById('fgcModal');
+    const ppModals = document.querySelectorAll('.pp-modal');
     if (eventsModal && eventsModal.classList.contains('is-open')) return;
     if (termsModal && termsModal.classList.contains('is-open')) return;
     if (videoLightbox && videoLightbox.classList.contains('is-open')) return;
     if (fgcModal && fgcModal.classList.contains('is-open')) return;
     for (const m of distModals) {
+      if (m.classList.contains('is-open')) return;
+    }
+    for (const m of ppModals) {
       if (m.classList.contains('is-open')) return;
     }
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
@@ -595,7 +599,7 @@
 
   // Slide 12 — Watch & Bet player: click the trigger to open & play the stream
   (function setupWatchBetPlayer() {
-    const frame = document.querySelector('[data-slide="16"] .wb-frame');
+    const frame = document.querySelector('[data-slide="17"] .wb-frame');
     if (!frame) return;
     const trigger = frame.querySelector('.wb-play-trigger');
     const player = frame.querySelector('.wb-player');
@@ -673,4 +677,41 @@
       closeModal();
     }
   }, true); // capture phase — fires before deck arrow-key handler
+
+  // === Presenting Partner in-situ example modals (slide 4) ===
+  (function setupPPModals() {
+    const modals = Array.from(document.querySelectorAll('.pp-modal'));
+    if (!modals.length) return;
+
+    function close(m) {
+      m.classList.remove('is-open');
+      m.setAttribute('aria-hidden', 'true');
+      m.querySelectorAll('video').forEach(v => v.pause());
+    }
+
+    document.querySelectorAll('[data-open-pp]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const m = document.getElementById('ppModal-' + btn.getAttribute('data-open-pp'));
+        if (!m) return;
+        modals.forEach(close);
+        m.classList.add('is-open');
+        m.setAttribute('aria-hidden', 'false');
+        const c = m.querySelector('.pp-modal-close');
+        if (c) c.focus();
+      });
+    });
+
+    document.querySelectorAll('[data-close-pp]').forEach(el => {
+      el.addEventListener('click', () => {
+        const m = el.closest('.pp-modal');
+        if (m) close(m);
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const open = document.querySelector('.pp-modal.is-open');
+      if (open) { e.stopImmediatePropagation(); close(open); }
+    }, true); // capture phase — fires before deck arrow-key handler
+  })();
 })();
