@@ -1054,6 +1054,48 @@ def build_html():
         check(old in t, f"2028 target present: {old[:48]}…")
         t = t.replace(old, new, 1)
 
+
+    # -- 4 Sep, second pass ------------------------------------------------
+    CLEANUP = [
+        # Asset 06: the sub-label just restated the first two bullets, and the
+        # rate is per event only.
+        ('<h4>Virtual Overlay Branding <span class="terms-asset-sub">'
+         'included in 2027 &middot; out-of-Territory events</span></h4>',
+         "<h4>Virtual Overlay Branding</h4>"),
+        ("<li><strong>Included in the 2027 fee</strong> at the three (3) "
+         "out-of-Territory European Events</li>",
+         "<li><strong>Included in the annual fee</strong> at the three (3) "
+         "out-of-Territory European Events</li>"),
+        ("<li>Additional events beyond the three (3) included: &euro;40,000 "
+         "per event, per market</li>\n"
+         "              <li>Events and markets to be selected by Betclic</li>",
+         "<li>Additional events beyond the three (3) included: &euro;40,000 "
+         "per event</li>"),
+        # Financial commitment: both trailing caveats out.
+        ("<li>Additional out-of-Territory events: &euro;40,000 per event, per "
+         "market</li>\n", ""),
+        ("<li>Athlete ambassadors: costed as an additional line item (see "
+         "<em>Athlete Ambassador Program</em>, asset 10)</li>\n", ""),
+        # Asset 07: one in-Territory event per year, not the full slate.
+        ('<h4>Sponsored LED Wristbands <span class="terms-asset-sub">'
+         'PFL Lyon 2026 &middot; PFL Lyon 2027</span></h4>',
+         '<h4>Sponsored LED Wristbands <span class="terms-asset-sub">'
+         'in-Territory Event only &middot; one per year</span></h4>'),
+        ("<li>PFL shall distribute Betclic-branded LED light-up wristbands to "
+         "attendees</li>",
+         "<li>Betclic-branded LED light-up wristbands distributed to "
+         "attendees at the one (1) in-Territory Event each year &mdash; PFL "
+         "Lyon 2026, 2027 and 2028</li>"),
+        # Asset 11: drop the four-event line.
+        ("<li>From 2027, applies at all four (4) Events, in and out of "
+         "Territory</li>\n              <li>Optional extras:",
+         "<li>Optional extras:"),
+    ]
+    for old, new in CLEANUP:
+        check(old in t, f"cleanup target present: {old[:48]}…")
+        t = t.replace(old, new, 1)
+    check("per market" not in t, "no per-market pricing left")
+
     p.write_text(t, encoding="utf-8")
 
     check("NetBet" not in t and "netbet" not in t, "no NetBet left in HTML")
@@ -1271,14 +1313,18 @@ def audit():
     check("&euro;150,000" not in html, "old year 1 fee gone")
     check("&euro;400,000" in html, "year 2 at EUR400k")
     check("&euro;420,000" in html, "year 3 at EUR420k")
+    check("per market" not in html, "per-market pricing removed")
+    check("Events and markets to be selected" not in html,
+          "selection line removed")
     check("Three-year partnership" in html, "term extended")
     check(html.count("<strong>2028:</strong>") == 3, "2028 rows added")
     check("&euro;35,000" not in html, "old overlay rate gone")
-    check("in-Territory Event only" not in html, "social scope reversed")
-    check("PFL Lyon 2026 &middot; PFL Lyon 2027" in html, "wristband scope")
+    check("Social content distribution applies to the in-Territory"
+          not in html, "social scope reversed")
+    check("PFL Lyon 2026, 2027 and 2028" in html, "wristband scope")
     check("all PFL / MMA Events across the term" in html, "content scope")
     check("&euro;200,000" not in html, "old year 2 fee gone")
-    check(html.count("out-of-Territory") >= 5, "out-of-Territory copy")
+    check(html.count("out-of-Territory") >= 3, "out-of-Territory copy")
     check("youtube.png" not in html, "YouTube logo dereferenced")
     check(html.count("Poland") >= 8, "Poland copy present")
     check("575k" in html and "450" not in html and "500k" not in html,
