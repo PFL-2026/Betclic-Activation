@@ -4746,3 +4746,83 @@ body.terms-modal-open { overflow: hidden; }
 .section-btn.section-btn-modal::after {
     transform: scaleX(0);
 }
+
+/* Presenting Partner asset grid — slide 4 (Awareness) */
+.pp-wrap {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    padding: 46px 80px 54px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.pp-header {
+    text-align: center;
+    margin-bottom: 26px;
+}
+.pp-header .slide-subtitle {
+    margin-left: auto;
+    margin-right: auto;
+}
+.pp-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+    align-items: stretch;
+}
+.pp-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 2px solid var(--ls-green);
+    border-radius: 4px;
+    padding: 15px 18px 17px;
+}
+.pp-num {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--ls-green);
+    margin-bottom: 5px;
+}
+.pp-card h3 {
+    font-family: var(--font-cond);
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 0 0 10px;
+}
+.pp-card ul { margin: 0; padding: 0; list-style: none; }
+.pp-card li {
+    position: relative;
+    padding-left: 14px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.66);
+    margin-bottom: 6px;
+}
+.pp-card li:last-child { margin-bottom: 0; }
+.pp-card li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--ls-green);
+}
+@media (max-width: 1100px) {
+    .pp-wrap { padding: 34px 40px 44px; }
+    .pp-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+}
+@media (max-width: 700px) {
+    .pp-grid { grid-template-columns: 1fr; }
+    .pp-card li { font-size: 12px; }
+}

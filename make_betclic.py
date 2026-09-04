@@ -8,6 +8,7 @@ pass. No stateful edits: run it twice, get byte-identical output.
 Usage:  python3 make_betclic.py
 """
 
+import io
 import os
 import re
 import shutil
@@ -15,8 +16,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+import cairosvg
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+
+from pp_slide import PP_CSS, PP_SLIDE
+from PIL import Image
 from scipy.ndimage import binary_dilation, uniform_filter
 
 ROOT = Path("/home/claude/work")
@@ -38,7 +42,8 @@ NB_RED_DEEP = "#8e1319"
 NB_RED_BRIGHT = "#e63a41"
 NB_RGB_RE = r"rgba\(198,\s*32,\s*38\s*,"
 
-FONT_DIR = Path("/mnt/skills/examples/canvas-design/canvas-fonts")
+DAZN_SVG = ROOT / "dazn_pack" / "DAZN logo.svg"
+SPORTKLUB_SRC = ROOT / "sportklub_src.png"
 
 FAILURES = []
 CHECKS = 0
@@ -324,33 +329,51 @@ def build_logos():
     lockup.convert("RGBA").save(logo_dir / "betclic.png", "PNG", optimize=True)
     check(lockup.size == (1536, 524), f"betclic.png size {lockup.size}")
 
-    # Portugal broadcaster mark. Rendered wordmark — placeholder pending the
-    # official DAZN asset.
-    font_path = FONT_DIR / "Outfit-Bold.ttf"
-    check(font_path.exists(), "Outfit-Bold.ttf available")
-    f = ImageFont.truetype(str(font_path), 190)
-    tmp = Image.new("RGBA", (1400, 400), (0, 0, 0, 0))
-    d = ImageDraw.Draw(tmp)
-    x, track = 40, -6
-    for ch in "DAZN":
-        d.text((x, 90), ch, font=f, fill=(255, 255, 255, 255))
-        x += round(d.textlength(ch, font=f)) + track
-    bbox = tmp.getbbox()
-    dazn = tmp.crop(bbox)
-    pad = Image.new("RGBA", (dazn.width + 24, dazn.height + 24), (0, 0, 0, 0))
-    pad.paste(dazn, (12, 12))
-    pad.save(logo_dir / "dazn.png", "PNG", optimize=True)
+    # Portugal broadcaster mark, rendered from the supplied official SVG.
+    # DAZN ships the mark in near-black (#0c0c1c); this deck places it on a
+    # dark panel, so it is recoloured to the brand's reversed-out white.
+    svg = (DAZN_SVG).read_text(encoding="utf-8")
+    check("#0c0c1c" in svg, "DAZN SVG uses the expected brand fill")
+    svg = svg.replace("#0c0c1c", "#ffffff")
+    png = cairosvg.svg2png(bytestring=svg.encode("utf-8"), output_width=720)
+    dazn = Image.open(io.BytesIO(png)).convert("RGBA")
+    dazn = dazn.crop(dazn.getbbox())
+    dazn.save(logo_dir / "dazn.png", "PNG", optimize=True)
+    check(dazn.size[0] > 400, f"dazn.png rendered at {dazn.size}")
 
-    for stale in ("netbet.png", "netbet-white.png", "talksport.png"):
+    # Poland broadcaster mark. Supplied flat on white; the deck places it on a
+    # dark panel, so the white is resolved into an alpha channel rather than
+    # left as a card behind the logo.
+    sk = Image.open(SPORTKLUB_SRC).convert("RGB")
+    arr = np.array(sk).astype(np.float32)
+    ink = np.array([172.0, 26.0, 27.0])
+    # Each pixel is a blend of white and the brand red; recover the coverage.
+    alpha = np.clip((255.0 - arr) / (255.0 - ink), 0, 1).max(axis=2)
+    up = Image.fromarray((alpha * 255).astype(np.uint8), "L").resize(
+        (sk.width * 2, sk.height * 2), Image.LANCZOS)
+    av = np.clip((np.array(up).astype(np.float32) / 255 - 0.5) * 2.6 + 0.5, 0, 1)
+    rgba = np.zeros((av.shape[0], av.shape[1], 4), np.uint8)
+    rgba[:, :, 0], rgba[:, :, 1], rgba[:, :, 2] = 172, 26, 27
+    rgba[:, :, 3] = (av * 255).astype(np.uint8)
+    sk_img = Image.fromarray(rgba, "RGBA")
+    sk_img = sk_img.crop(sk_img.getbbox())
+    sk_img.save(logo_dir / "sportklub.png", "PNG", optimize=True)
+    check(sk_img.mode == "RGBA" and sk_img.getextrema()[3][0] == 0,
+          "sportklub.png has a transparent background")
+
+    for stale in ("netbet.png", "netbet-white.png", "talksport.png",
+                  "youtube.png"):
         p = logo_dir / stale
         check(p.exists(), f"stale logo present before removal: {stale}")
         p.unlink(missing_ok=True)
 
     check((logo_dir / "betclic.png").exists(), "betclic.png written")
     check((logo_dir / "dazn.png").exists(), "dazn.png written")
+    check((logo_dir / "sportklub.png").exists(), "sportklub.png written")
+    check(not (logo_dir / "youtube.png").exists(), "youtube.png removed")
     check(not (logo_dir / "netbet.png").exists(), "netbet.png removed")
     check(not (logo_dir / "talksport.png").exists(), "talksport.png removed")
-    print("  logos -> betclic.png, dazn.png")
+    print("  logos -> betclic.png, dazn.png, sportklub.png")
 
 
 def build_icons():
@@ -402,7 +425,7 @@ def build_html():
              r'class="bcast-logo-lg" loading="lazy">',
              '<div class="bcast-country">Portugal</div>\n          '
              '<img src="assets/logos/dazn.png" alt="DAZN" '
-             'class="bcast-logo-lg" loading="lazy">',
+             'class="bcast-logo-lg bcast-logo-compact" loading="lazy">',
              "broadcast partner tile")
     t = subN(t, r"talkSPORT", "DAZN", "talkSPORT wordmarks")
 
@@ -430,6 +453,269 @@ def build_html():
     # -- copy fixes tied to the swapped creatives --------------------------
     t = sub1(t, r"By the Numbers, Shabily", "By the Numbers, Taylor Lapilus",
              "social series alt text")
+
+
+
+
+    # -- new Awareness slide: Presenting Partner asset stack ---------------
+    # Inserted at the head of the Awareness run, so the umbrella status is
+    # stated before the individual assets that sit under it. Everything from
+    # the old slide 4 onward shifts by one; renumbering runs high-to-low so
+    # the substitutions can't collide.
+    total_before, total_after = 18, 19
+
+    for n in range(total_before, 3, -1):
+        t = sub1(t, r'<section class="slide([^"]*)" data-slide="%d">' % n,
+                 r'<section class="slide\1" data-slide="%d">' % (n + 1),
+                 f"reindex slide {n}")
+        t = sub1(t, r'<div class="slide-num">%02d / %d</div>' % (n, total_before),
+                 '<div class="slide-num">%02d / %d</div>' % (n + 1, total_after),
+                 f"renumber slide-num {n}")
+
+    # Slides 1-3 keep their index but the denominator moves.
+    for n in (1, 2, 3):
+        old = '<div class="slide-num">%02d / %d</div>' % (n, total_before)
+        if old in t:
+            t = sub1(t, re.escape(old),
+                     '<div class="slide-num">%02d / %d</div>' % (n, total_after),
+                     f"renumber slide-num {n}")
+    t = sub1(t, r'<span class="cur" id="curSlide">01</span> / %d' % total_before,
+             '<span class="cur" id="curSlide">01</span> / %d' % total_after,
+             "slide counter total")
+
+    t = t.replace(PP_SLIDE.replace("PLACEHOLDER", ""), "")  # no-op guard
+    marker = '<section class="slide content-slide" data-slide="5">'
+    check(marker in t, "insertion point located")
+    t = sub1(t, re.escape(marker), lambda m: PP_SLIDE + marker,
+             "insert Presenting Partner slide")
+
+    # Section nav targets shift for every section after Awareness.
+    for sec, old_target in ((3, 9), (4, 14), (5, 17), (6, 18)):
+        t = sub1(t, r'data-section="%d" data-target="%d"' % (sec, old_target),
+                 'data-section="%d" data-target="%d"' % (sec, old_target + 1),
+                 f"nav target section {sec}")
+
+    # -- Poland added as a 2027 market ------------------------------------
+    # Slide 4: the third broadcast tile moves from a both-territories YouTube
+    # stream to the Polish linear partner.
+    t = sub1(t,
+             r'<div class="bcast-country">France &amp; Portugal</div>\s*\n\s*'
+             r'<img src="assets/logos/youtube\.png" alt="YouTube" '
+             r'class="bcast-logo-lg" loading="lazy">',
+             '<div class="bcast-country">Poland</div>\n          '
+             '<img src="assets/logos/sportklub.png" alt="SportKlub" '
+             'class="bcast-logo-lg bcast-logo-compact" loading="lazy">',
+             "Poland broadcast tile")
+    t = subN(t, r"RMC Sport, DAZN and YouTube", "RMC Sport, DAZN and SportKlub",
+             "broadcast partner list")
+    t = sub1(t, r'<div class="num">FR &middot; PT</div>',
+             '<div class="num num-wide">FR &middot; PT &middot; PL</div>',
+             "territories stat card")
+    t = sub1(t, r'<div class="num">450k</div>', '<div class="num">500k</div>',
+             "slide 4 unique viewers")
+    t = sub1(t, r'<div class="dist-metric-num">450<span class="dist-metric-unit">k</span></div>',
+             '<div class="dist-metric-num">500<span class="dist-metric-unit">k</span></div>',
+             "modal unique viewers")
+
+    # Broadcast modal: swap the streaming section for the Polish feed.
+    t = sub1(t,
+             r'<h3 class="terms-section-title">Streaming</h3>\s*\n\s*'
+             r'<div class="dist-channel-grid">\s*\n\s*'
+             r'<div class="dist-channel">\s*\n\s*'
+             r'<div class="dist-channel-tag">Digital feed</div>\s*\n\s*'
+             r'<h4>YouTube</h4>\s*\n\s*<ul>\s*\n'
+             r'\s*<li>Live and on-demand PFL coverage carried across '
+             r'<strong>YouTube</strong> in both territories</li>\s*\n'
+             r'\s*<li>Same co-branded overlay and sponsor-graphic package as '
+             r'the linear feeds</li>\s*\n'
+             r'\s*<li>Geo-targeted to France and Portugal</li>',
+             '<h3 class="terms-section-title">Poland '
+             '<span class="dist-section-sub">new market from 2027</span></h3>\n'
+             '        <div class="dist-channel-grid">\n'
+             '          <div class="dist-channel">\n'
+             '            <div class="dist-channel-tag">Linear feed &middot; from 2027</div>\n'
+             '            <h4>SportKlub</h4>\n'
+             '            <ul>\n'
+             '              <li>Poland joins the Territory from '
+             '<strong>1 January 2027</strong>, with all broadcast integrations '
+             'delivered via the <strong>SportKlub Polish feed</strong></li>\n'
+             '              <li>Same co-branded overlay and sponsor-graphic '
+             'package as the France and Portugal feeds</li>\n'
+             '              <li>Geo-targeted to Poland</li>',
+             "Poland broadcast section")
+    t = sub1(t,
+             r'<div class="terms-print-meta">PFL × Betclic · 2026–2027 · '
+             r'France &amp; Portugal</div>',
+             '<div class="terms-print-meta">PFL × Betclic · 2026–2027 · '
+             'France, Portugal &amp; Poland</div>',
+             "broadcast modal print meta")
+    t = sub1(t,
+             r'<div>PFL × Betclic · Broadcast Distribution · Confidential</div>\s*\n'
+             r'\s*<div>2026–2027 · France &amp; Portugal</div>',
+             '<div>PFL × Betclic · Broadcast Distribution · Confidential</div>\n'
+             '        <div>2026–2027 · France, Portugal &amp; Poland</div>',
+             "broadcast modal footer")
+
+    # Commercials modal: Poland is a 2027 market, not a 2026 one.
+    t = sub1(t, r"<dt>Territories</dt>\s*\n\s*<dd>France and Portugal</dd>",
+             "<dt>Territories</dt>\n          <dd>France and Portugal, "
+             "with <strong>Poland added as a market from 1 January 2027</strong>"
+             "\n            <ul>\n"
+             "              <li><strong>2026:</strong> France and Portugal</li>\n"
+             "              <li><strong>2027:</strong> France, Portugal and Poland</li>\n"
+             "            </ul>\n          </dd>",
+             "territories row")
+    t = sub1(t,
+             r"2026&ndash;2027 &mdash; &lsquo;Exclusive Betting Partner of PFL "
+             r"in France &amp; Portugal&rsquo;;",
+             "2026 &mdash; &lsquo;Exclusive Betting Partner of PFL in France "
+             "&amp; Portugal&rsquo;; 2027 &mdash; &lsquo;Exclusive Betting "
+             "Partner of PFL in France, Portugal &amp; Poland&rsquo;;",
+             "official designations")
+    t = sub1(t, r'<div class="terms-print-meta">2026–2027 · France &amp; Portugal</div>',
+             '<div class="terms-print-meta">2026–2027 · France, Portugal '
+             '&amp; Poland <span style="opacity:.7">(Poland from 2027)</span></div>',
+             "commercials modal print meta")
+    t = sub1(t,
+             r'<div>PFL × Betclic · Heads of Terms · Confidential</div>\s*\n'
+             r'\s*<div>2026–2027 · France &amp; Portugal</div>',
+             '<div>PFL × Betclic · Heads of Terms · Confidential</div>\n'
+             '        <div>2026–2027 · France, Portugal &amp; Poland</div>',
+             "commercials modal footer")
+
+
+    # -- commercial terms, per Jacques' 3 Sep amendments -------------------
+    t = sub1(t,
+             r"<li><strong>2027:</strong> A minimum of two \(2\) PFL Events "
+             r"hosted within the Territory</li>",
+             "<li><strong>2027:</strong> A minimum of one (1) PFL Event "
+             "hosted within the Territory</li>",
+             "2027 in-Territory baseline")
+    t = sub1(t, r'<span class="terms-grid-sub">two events p\.a\.</span>',
+             '<span class="terms-grid-sub">one event p.a.</span>',
+             "guaranteed events sub-label")
+    t = sub1(t,
+             r"PFL guarantees a minimum of two \(2\) Events per calendar year "
+             r"hosted within the Territory, comprising one \(1\) Event in France "
+             r"and one \(1\) Event in Portugal\.",
+             "PFL guarantees a minimum of one (1) Event per calendar year "
+             "hosted within the Territory, in France.",
+             "guaranteed territory events")
+    t = sub1(t, r"<li>Three \(3\) VIP tickets</li>",
+             "<li>Five (5) VIP tickets</li>", "VIP ticket allocation")
+
+    # -- 2027 restructured: 1 in-Territory + 3 out-of-Territory European -----
+    t = sub1(t,
+             r"<li><strong>2027:</strong> A minimum of one \(1\) PFL Event "
+             r"hosted within the Territory</li>",
+             "<li><strong>2027:</strong> Four (4) Events in total &mdash; "
+             "one (1) PFL Event hosted within the Territory, plus three (3) "
+             "Europe-based Events hosted outside the Territory</li>",
+             "2027 franchises & events")
+    t = sub1(t, r"<li><strong>2027:</strong> &euro;300,000</li>",
+             "<li><strong>2027:</strong> &euro;350,000 &mdash; inclusive of "
+             "all four (4) Events and of virtual overlay branding at the "
+             "three (3) out-of-Territory Events</li>",
+             "2027 fee")
+    t = sub1(t,
+             r"<li>Virtual overlay branding at out-of-Territory events: "
+             r"&euro;35,000 per event, per market</li>",
+             "<li>Virtual overlay branding at any further out-of-Territory "
+             "event &mdash; in 2026, or beyond the three (3) included in 2027 "
+             "&mdash; &euro;35,000 per event, per market</li>",
+             "virtual overlay pricing")
+
+    t = sub1(t, r'<h3 class="terms-section-title">Guaranteed Territory Events '
+                r'&amp; Status</h3>',
+             '<h3 class="terms-section-title">Guaranteed Events '
+             '&amp; Status</h3>', "guaranteed events section title")
+    t = sub1(t,
+             r'<dt>From Jan 1, 2027<span class="terms-grid-sub">one event p\.a\.'
+             r'</span></dt>\s*\n\s*<dd>PFL guarantees a minimum of one \(1\) '
+             r'Event per calendar year hosted within the Territory, in France\. '
+             r'All guaranteed Territory Events shall include the rights and '
+             r'deliverables set out under <em>Partnership Assets</em> below\.</dd>',
+             '<dt>From Jan 1, 2027<span class="terms-grid-sub">four events p.a.'
+             '</span></dt>\n'
+             '          <dd>Four (4) Events per calendar year, all within the '
+             'annual fee:\n'
+             '            <ul>\n'
+             '              <li><strong>One (1) in-Territory Event</strong>, '
+             'hosted in France &mdash; Presenting Partner status and the full '
+             'asset package set out under <em>Partnership Assets</em> below.</li>\n'
+             '              <li><strong>Three (3) out-of-Territory Events</strong>, '
+             'hosted elsewhere in Europe &mdash; virtual overlay branding, '
+             'broadcast integrations, digital &amp; video content access and '
+             'VIP hospitality. These Events are broadcast into the Betclic '
+             'Territories, where <strong>Betclic will be the exclusive betting '
+             'partner in the broadcast</strong>.</li>\n'
+             '            </ul>\n'
+             '            Social content distribution applies to the '
+             'in-Territory Event only.\n          </dd>',
+             "2027 guaranteed events")
+
+    # Asset 02 — integrations now reach the out-of-Territory Events too.
+    t = sub1(t,
+             r"(<li>Betclic to receive access to custom broadcast opportunities "
+             r"per event[^<]*</li>)",
+             r"\1\n              <li>From 2027, broadcast integrations apply at "
+             "all four (4) Events &mdash; the in-Territory Event and the three "
+             "(3) Europe-based Events hosted outside the Territory</li>",
+             "asset 02 out-of-territory reach")
+
+    # Asset 05 — social is in-Territory only.
+    t = sub1(t, r"<h4>Social Content Distribution</h4>",
+             '<h4>Social Content Distribution '
+             '<span class="terms-asset-sub">in-Territory Events only</span></h4>',
+             "asset 05 heading")
+    t = sub1(t, r"<li>A total of three \(3\) social media posts per event</li>",
+             "<li>A total of three (3) social media posts per in-Territory "
+             "Event</li>\n              <li>Social content distribution does "
+             "not apply to out-of-Territory Events</li>",
+             "asset 05 scope")
+
+    # Asset 06 — overlay is bundled into the 2027 fee, not an add-on.
+    t = sub1(t,
+             r'<h4>Virtual Overlay Branding <span class="terms-asset-sub">'
+             r'optional add-on &middot; out-of-Territory events</span></h4>',
+             '<h4>Virtual Overlay Branding <span class="terms-asset-sub">'
+             'included in 2027 &middot; out-of-Territory events</span></h4>',
+             "asset 06 heading")
+    t = sub1(t,
+             r"<li><strong>Optional additional asset</strong>, available at "
+             r"Events hosted outside the Territory and taken up at Betclic"
+             r"&rsquo;s election</li>",
+             "<li><strong>Included within the 2027 fee</strong> at the three "
+             "(3) Europe-based Events hosted outside the Territory</li>",
+             "asset 06 inclusion")
+    t = sub1(t,
+             r"<li><strong>Betclic will be the exclusive betting operator "
+             r"featured on the canvas</strong></li>",
+             "<li><strong>Betclic will be the exclusive betting operator "
+             "featured on the canvas</strong>, and the exclusive betting "
+             "partner in the broadcast of these Events into the Betclic "
+             "Territories</li>",
+             "asset 06 exclusivity")
+    t = sub1(t, r"<li>Charged at &euro;35,000 per event, per market</li>",
+             "<li>Further out-of-Territory events beyond the three (3) "
+             "included: &euro;35,000 per event, per market</li>",
+             "asset 06 pricing")
+
+    # Asset 08 — content access follows the Events.
+    t = sub1(t,
+             r"(<li>All content may be used across Betclic-owned channels, "
+             r"with specified rules</li>)",
+             r"\1\n              <li>From 2027, content access applies at all "
+             "four (4) Events, in and out of Territory</li>",
+             "asset 08 scope")
+
+    # Asset 11 — VIP access follows the Events.
+    t = sub1(t,
+             r"(<li>Five \(5\) GA tickets</li>)",
+             r"\1\n              <li>From 2027, the per-event allocation "
+             "applies at all four (4) Events, in and out of Territory</li>",
+             "asset 11 scope")
+
 
     p.write_text(t, encoding="utf-8")
 
@@ -494,6 +780,81 @@ def build_css():
              ".terms-modal-lockup img:last-of-type { height: 26px; }",
              "modal lockup scale")
 
+
+    # The DAZN and SportKlub marks are compact where RMC Sport is wide, so at
+    # a shared height they read noticeably smaller. They get their own size,
+    # sitting flush to the tile. The
+    # country label gets a floor so the wrapped 'France & Portugal' caption
+    # doesn't push the third logo out of line with the other two.
+    t = sub1(t, r"\.bcast-partner > img\.bcast-logo-lg \{\n"
+                r"    padding: 4px 8px;\n\}",
+             ".bcast-partner > img.bcast-logo-lg {\n"
+             "    padding: 4px 8px;\n}\n"
+             ".bcast-partner > img.bcast-logo-lg.bcast-logo-compact {\n"
+             "    height: 100%;\n"
+             "    width: auto;\n"
+             "    padding: 0;\n}",
+             "compact broadcast logo sizing")
+    t = sub1(t, r"(\.bcast-country \{\n    font-family: var\(--font-cond\);\n)",
+             r"\1    min-height: 29px;\n", "broadcast label height floor")
+
+    t = sub1(t, r"(\.stat-card \.num \{\n    font-family: var\(--font-display\);\n)",
+             r"\1    white-space: nowrap;\n", "stat number nowrap")
+    t = sub1(t, r"(\.stat-card \.label \{\n)",
+             ".stat-card .num.num-wide { font-size: 23px; letter-spacing: 0.01em; }\n"
+             r"\1", "wide stat number size")
+
+
+    # Slide 4 stat cards: the three numbers are set at different sizes, so
+    # without a shared number band their baselines and the labels beneath them
+    # all start at different heights. Fixing the band and pinning labels to the
+    # card floor lines the row up whatever the copy length.
+    t = sub1(t, r"\.stat-card \{\n"
+                r"    background: rgba\(255,255,255,0\.03\);\n"
+                r"    border: 1px solid rgba\(255,255,255,0\.08\);\n"
+                r"    border-radius: 4px;\n"
+                r"    padding: 16px 14px;\n\}",
+             ".stat-card {\n"
+             "    background: rgba(255,255,255,0.03);\n"
+             "    border: 1px solid rgba(255,255,255,0.08);\n"
+             "    border-radius: 4px;\n"
+             "    padding: 16px 14px;\n"
+             "    display: flex;\n"
+             "    flex-direction: column;\n}",
+             "stat card flex column")
+    t = sub1(t, r"    color: var\(--pfl-red\);\n    line-height: 1;\n"
+                r"    margin-bottom: 6px;\n\}",
+             "    color: var(--pfl-red);\n"
+             "    line-height: 1;\n"
+             "    margin-bottom: 10px;\n"
+             "    min-height: 30px;\n"
+             "    display: flex;\n"
+             "    align-items: flex-end;\n}",
+             "stat number band")
+    t = sub1(t, r"(\.stat-card \.label \{\n    font-family: var\(--font-cond\);\n)",
+             r"\1    line-height: 1.5;\n",
+             "stat label leading")
+    t = sub1(t, r"(\.stat-card \.label \{[^}]*?)letter-spacing: 0\.16em;",
+             r"\1letter-spacing: 0.10em;", "stat label tracking")
+    t = sub1(t, r"(\.stat-card \.label \{[^}]*?)font-size: 11px;",
+             r"\1font-size: 10px;", "stat label size")
+
+    # Broadcast partner tiles: taller, tighter, so the marks themselves carry
+    # more of the tile instead of the padding.
+    t = sub1(t, r"(\.bcast-partner \{\n    display: flex;\n"
+                r"    flex-direction: column;\n    align-items: center;\n"
+                r"    justify-content: flex-start;\n)    gap: 12px;\n"
+                r"    height: 108px;\n    padding: 12px;",
+             r"\1    gap: 10px;\n    height: 132px;\n    padding: 12px 10px;",
+             "broadcast tile size")
+    t = sub1(t, r"\.bcast-partner > img\.bcast-logo-lg \{\n    padding: 4px 8px;\n\}",
+             ".bcast-partner > img.bcast-logo-lg {\n"
+             "    padding: 0;\n"
+             "    max-width: 100%;\n}",
+             "wide logo padding")
+
+    t = t.rstrip() + "\n" + PP_CSS
+
     # Comments that name the old sponsor
     t = subN(t, r"NetBet", "Betclic", "CSS comment wordmarks")
 
@@ -513,6 +874,18 @@ def build_js():
     p = OUT / "js" / "deck.js"
     t = p.read_text(encoding="utf-8")
     t = subN(t, r"NetBet", "Betclic", "JS wordmarks")
+    t = sub1(t, r"\{ idx: 2, slides: \[4, 5, 6, 7, 8\] \},",
+             "{ idx: 2, slides: [4, 5, 6, 7, 8, 9] },", "section 2 range")
+    t = sub1(t, r"\{ idx: 3, slides: \[9, 10, 11, 12, 13\] \},",
+             "{ idx: 3, slides: [10, 11, 12, 13, 14] },", "section 3 range")
+    t = sub1(t, r"\{ idx: 4, slides: \[14, 15, 16\] \},",
+             "{ idx: 4, slides: [15, 16, 17] },", "section 4 range")
+    t = sub1(t, r"\{ idx: 5, slides: \[17\] \},",
+             "{ idx: 5, slides: [18] },", "section 5 range")
+    t = sub1(t, r"\{ idx: 6, slides: \[18\] \}",
+             "{ idx: 6, slides: [19] }", "section 6 range")
+    t = sub1(t, r"\[data-slide=\"16\"\] \.wb-frame",
+             '[data-slide="17"] .wb-frame', "watch & bet slide reference")
     p.write_text(t, encoding="utf-8")
     check("NetBet" not in t and "netbet" not in t, "no NetBet left in JS")
     check(not re.search(r"\bUK\b|United Kingdom", t), "no UK left in JS")
@@ -545,6 +918,17 @@ def audit():
             orphans.append(rel)
     check(not orphans, f"orphaned assets: {orphans}")
 
+    check("&euro;350,000" in html, "year 2 at EUR350k")
+    check("&euro;200,000" not in html, "old year 2 fee gone")
+    check(html.count("out-of-Territory") >= 7, "out-of-Territory copy")
+    check("youtube.png" not in html, "YouTube logo dereferenced")
+    check(html.count("Poland") >= 8, "Poland copy present")
+    check("450" not in html, "viewer figure updated everywhere")
+    check("Three (3) VIP" not in html, "VIP allocation updated")
+    check("Event in Portugal" not in html, "PT in-territory event removed")
+    check(html.count("data-slide=") == 19, "19 slides present")
+    check("/ 18</div>" not in html, "no stale 18-slide numbering")
+    check(html.count("pp-card") == 6, "6 presenting-partner cards")
     check("Betclic" in html, "Betclic present in HTML")
     check("Portugal" in html, "Portugal present in HTML")
     check("make_netbet.py" not in os.listdir(OUT), "old build script removed")
