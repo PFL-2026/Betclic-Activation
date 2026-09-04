@@ -1096,6 +1096,45 @@ def build_html():
         t = t.replace(old, new, 1)
     check("per market" not in t, "no per-market pricing left")
 
+
+    # -- exclusivity scope + overlay priced on request ---------------------
+    EXCLUSIVITY = [
+        # Overlay beyond the included three is quoted, not rate-carded.
+        ("<li>Additional events beyond the three (3) included: &euro;40,000 "
+         "per event</li>",
+         "<li>Additional events beyond the three (3) included: priced on "
+         "request &mdash; based on the number of markets and feeds "
+         "required</li>"),
+        # Overlay is an out-of-Territory European asset only; say so on the
+        # asset itself so it isn't read as a blanket right.
+        ("<li><strong>Included in the annual fee</strong> at the three (3) "
+         "out-of-Territory European Events</li>",
+         "<li><strong>Included in the annual fee at the three (3) "
+         "Europe-based Events hosted outside the Territory only</strong> "
+         "&mdash; virtual overlay does not apply to PFL Events staged "
+         "elsewhere</li>"),
+        # A dedicated framework row: category exclusivity is broader than the
+        # four guaranteed Events and runs across the whole traditional slate.
+        ("          <dt>Financial Commitment</dt>",
+         "          <dt>Category Exclusivity</dt>\n"
+         "          <dd>Betclic is the <strong>exclusive regional betting "
+         "partner across all traditional PFL MMA Events</strong> broadcast "
+         "into each Territory, for the full Term &mdash; not only the "
+         "guaranteed Events.\n"
+         "            <ul>\n"
+         "              <li><strong>2026:</strong> France and Portugal</li>\n"
+         "              <li><strong>2027&ndash;2028:</strong> France, Portugal "
+         "and Poland. PFL will not sell the betting category on any other "
+         "traditional MMA Event to a third party in these markets.</li>\n"
+         "            </ul>\n"
+         "          </dd>\n\n"
+         "          <dt>Financial Commitment</dt>"),
+    ]
+    for old, new in EXCLUSIVITY:
+        check(old in t, f"exclusivity target present: {old[:48]}…")
+        t = t.replace(old, new, 1)
+    check("&euro;40,000" not in t, "overlay rate card removed")
+
     p.write_text(t, encoding="utf-8")
 
     check("NetBet" not in t and "netbet" not in t, "no NetBet left in HTML")
@@ -1314,6 +1353,10 @@ def audit():
     check("&euro;400,000" in html, "year 2 at EUR400k")
     check("&euro;420,000" in html, "year 3 at EUR420k")
     check("per market" not in html, "per-market pricing removed")
+    check("&euro;40,000" not in html, "overlay figure removed")
+    check("Category Exclusivity" in html, "exclusivity row added")
+    check("exclusive regional betting partner across all "
+          "traditional PFL MMA Events" in html, "exclusivity scope")
     check("Events and markets to be selected" not in html,
           "selection line removed")
     check("Three-year partnership" in html, "term extended")
@@ -1324,7 +1367,7 @@ def audit():
     check("PFL Lyon 2026, 2027 and 2028" in html, "wristband scope")
     check("all PFL / MMA Events across the term" in html, "content scope")
     check("&euro;200,000" not in html, "old year 2 fee gone")
-    check(html.count("out-of-Territory") >= 3, "out-of-Territory copy")
+    check(html.count("out-of-Territory") >= 2, "out-of-Territory copy")
     check("youtube.png" not in html, "YouTube logo dereferenced")
     check(html.count("Poland") >= 8, "Poland copy present")
     check("575k" in html and "450" not in html and "500k" not in html,
