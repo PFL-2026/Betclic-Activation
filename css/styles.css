@@ -4838,7 +4838,9 @@ body.terms-modal-open { overflow: hidden; }
 .pp-modal-grid.pp-cols-3 { grid-template-columns: repeat(3, 1fr); }
 .pp-cell { margin: 0; }
 .pp-cell img, .pp-cell video {
-    width: 100%; height: 300px; object-fit: contain;
+    /* Tall enough that portrait pieces (email sends, ticket artwork) still
+       read at a glance rather than letterboxing down to a thumbnail. */
+    width: 100%; height: min(48vh, 430px); object-fit: contain;
     background: #05070f; border: 1px solid rgba(255,255,255,0.08);
     border-radius: 4px; display: block;
 }
@@ -4858,5 +4860,5 @@ body.terms-modal-open { overflow: hidden; }
     .pp-grid { grid-template-columns: 1fr; }
     .pp-card { min-height: 0; }
     .pp-modal-grid.pp-cols-2, .pp-modal-grid.pp-cols-3 { grid-template-columns: 1fr; }
-    .pp-cell img, .pp-cell video { height: 220px; }
+    .pp-cell img, .pp-cell video { height: min(52vh, 340px); }
 }

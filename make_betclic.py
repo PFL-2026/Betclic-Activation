@@ -334,6 +334,10 @@ PP_EXAMPLES = [
     ("arena",     "LED_Screens.JPG",              "pp_led_screens",        "LED Screens"),
     ("social",    "Main_Event_Presenter.png",     "pp_main_event_presenter","Main Event Presenter"),
     ("social",    "Fighter_Presenter.png",        "pp_fighter_presenter",  "Fighter Presenter"),
+    ("crm",       "Website_Branding.png",         "pp_website_branding",   "Website Branding"),
+    ("crm",       "Company_Email_Blast.png",      "pp_company_email_blast","Company Email Blast"),
+    ("ticketing", "Official_Ticketing_Artwork.png","pp_official_ticketing_artwork", "Official Ticketing Artwork"),
+    ("ticketing", "Event_Ticket.png",             "pp_event_ticket",       "Event Ticket"),
 ]
 
 PP_UPLOADS = ROOT / "pp_uploads"
@@ -1011,9 +1015,9 @@ def audit():
     check(html.count("data-slide=") == 19, "19 slides present")
     check("/ 18</div>" not in html, "no stale 18-slide numbering")
     check(html.count('class="pp-card') == 6, "6 presenting-partner cards")
-    check(html.count("data-open-pp=") == 4, "4 clickable cards")
-    check(html.count('class="pp-modal"') == 4, "4 example modals")
-    check(html.count("pp-cell") == 10, "10 in-situ examples")
+    check(html.count("data-open-pp=") == 6, "6 clickable cards")
+    check(html.count('class="pp-modal"') == 6, "6 example modals")
+    check(html.count("pp-cell") == 14, "14 in-situ examples")
     check("Ticketing &amp; Promotion" in html.replace("<br>", " "),
           "card 6 renamed")
     check("Betclic" in html, "Betclic present in HTML")
