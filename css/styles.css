@@ -4839,42 +4839,31 @@ body.terms-modal-open { overflow: hidden; }
 }
 .pp-modal-close:hover { background: var(--ls-green); }
 .pp-modal-grid {
-    display: grid; gap: 22px;
+    display: grid; gap: 24px;
     flex: 1 1 auto; min-height: 0;
-    align-content: center; justify-items: center;
-}
-.pp-modal-grid.pp-cols-2 { grid-template-columns: repeat(2, 1fr); }
-/* Three landscape pieces side by side would each be width-limited to about a
-   third of the shell, leaving the modal half empty. A hero-plus-two layout
-   uses the same fixed shell but makes the lead example roughly twice the size. */
-.pp-modal-grid.pp-cols-3 {
-    grid-template-columns: 1.85fr 1fr;
-    grid-template-rows: 1fr 1fr;
     align-content: stretch;
 }
-.pp-modal-grid.pp-cols-3 .pp-cell {
-    grid-column: 2; height: 100%; justify-content: center;
-}
-.pp-modal-grid.pp-cols-3 .pp-cell:first-child {
-    grid-column: 1; grid-row: 1 / span 2;
-}
-.pp-modal-grid.pp-cols-3 .pp-cell img,
-.pp-modal-grid.pp-cols-3 .pp-cell video { max-height: calc(100% - 36px); }
+.pp-modal-grid.pp-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.pp-modal-grid.pp-cols-3 { grid-template-columns: repeat(3, 1fr); }
+/* Each cell is a two-row grid: a flexible media band and a caption pinned to
+   the cell floor. Cells in a row share a height, so every caption in every
+   modal lands on the same baseline whatever the media's aspect ratio. */
 .pp-cell {
-    margin: 0; min-height: 0; max-width: 100%;
-    display: flex; flex-direction: column; align-items: center;
+    margin: 0; min-height: 0;
+    /* minmax(0,…) so a tall portrait piece can't expand the row past the
+       shell — 1fr alone carries an auto minimum and overflows. */
+    display: grid; grid-template-rows: minmax(0, 1fr) auto;
+    justify-items: center;
 }
-/* The frame hugs the media rather than the grid cell, so landscape and
-   portrait pieces both sit in a tight border with no letterbox bars. The cap
-   is expressed against the shell height so the row always fits. */
 .pp-cell img, .pp-cell video {
-    max-width: 100%; max-height: min(72vh, 740px);
+    align-self: center; justify-self: center;
+    max-width: 100%; max-height: 100%;
     width: auto; height: auto; object-fit: contain;
     background: #05070f; border: 1px solid rgba(255,255,255,0.08);
     border-radius: 6px; display: block;
 }
 .pp-cell figcaption {
-    flex: none; margin-top: 14px; text-align: center;
+    align-self: end; margin-top: 16px; text-align: center;
     font-family: var(--font-cond); font-size: 13px; font-weight: 600;
     letter-spacing: 0.16em; text-transform: uppercase;
     color: rgba(255,255,255,0.68);
@@ -4883,9 +4872,7 @@ body.terms-modal-open { overflow: hidden; }
     .pp-wrap { padding: 34px 40px 44px; }
     .pp-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
     .pp-card h3 { font-size: 25px; }
-    .pp-modal-grid.pp-cols-3 { grid-template-columns: repeat(2, 1fr); grid-template-rows: none; }
-    .pp-modal-grid.pp-cols-3 .pp-cell,
-    .pp-modal-grid.pp-cols-3 .pp-cell:first-child { grid-column: auto; grid-row: auto; }
+    .pp-modal-grid.pp-cols-3 { grid-template-columns: repeat(2, 1fr); }
     .pp-modal-head h3 { font-size: 28px; }
 }
 @media (max-width: 700px) {
@@ -4895,5 +4882,6 @@ body.terms-modal-open { overflow: hidden; }
     .pp-modal-inner { height: auto; max-height: 92vh; overflow-y: auto; padding: 22px 18px 24px; }
     .pp-modal-grid { display: block; }
     .pp-cell { display: block; margin-bottom: 20px; }
+    .pp-cell figcaption { margin-top: 12px; }
     .pp-cell img, .pp-cell video { max-height: 52vh; width: 100%; }
 }
