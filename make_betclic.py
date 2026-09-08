@@ -1135,6 +1135,14 @@ def build_html():
         t = t.replace(old, new, 1)
     check("&euro;40,000" not in t, "overlay rate card removed")
 
+
+    # -- external bumper added to in-arena branding ------------------------
+    t = sub1(t,
+             r"<li>1 &times; vertical bumper</li>",
+             "<li>1 &times; vertical bumper</li>\n"
+             "              <li>1 &times; external bumper</li>",
+             "asset 03 external bumper")
+
     p.write_text(t, encoding="utf-8")
 
     check("NetBet" not in t and "netbet" not in t, "no NetBet left in HTML")
@@ -1355,6 +1363,7 @@ def audit():
     check("per market" not in html, "per-market pricing removed")
     check("&euro;40,000" not in html, "overlay figure removed")
     check("Category Exclusivity" in html, "exclusivity row added")
+    check("1 &times; external bumper" in html, "external bumper listed")
     check("exclusive regional betting partner across all "
           "traditional PFL MMA Events" in html, "exclusivity scope")
     check("Events and markets to be selected" not in html,
