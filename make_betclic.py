@@ -1143,6 +1143,13 @@ def build_html():
              "              <li>1 &times; external bumper</li>",
              "asset 03 external bumper")
 
+
+    # -- commercials quoted in USD -----------------------------------------
+    # Symbol swap only: the figures themselves are unchanged.
+    n = t.count("&euro;")
+    check(n == 3, f"three currency figures to convert (found {n})")
+    t = t.replace("&euro;", "$")
+
     p.write_text(t, encoding="utf-8")
 
     check("NetBet" not in t and "netbet" not in t, "no NetBet left in HTML")
@@ -1356,12 +1363,13 @@ def audit():
             orphans.append(rel)
     check(not orphans, f"orphaned assets: {orphans}")
 
-    check("&euro;175,000" in html, "year 1 at EUR175k")
-    check("&euro;150,000" not in html, "old year 1 fee gone")
-    check("&euro;400,000" in html, "year 2 at EUR400k")
-    check("&euro;420,000" in html, "year 3 at EUR420k")
+    check("$175,000" in html, "year 1 at USD175k")
+    check("$150,000" not in html, "old year 1 fee gone")
+    check("$400,000" in html, "year 2 at USD400k")
+    check("$420,000" in html, "year 3 at USD420k")
+    check("&euro;" not in html, "no euro symbols left")
     check("per market" not in html, "per-market pricing removed")
-    check("&euro;40,000" not in html, "overlay figure removed")
+    check("40,000" not in html, "overlay figure removed")
     check("Category Exclusivity" in html, "exclusivity row added")
     check("1 &times; external bumper" in html, "external bumper listed")
     check("exclusive regional betting partner across all "
@@ -1370,12 +1378,12 @@ def audit():
           "selection line removed")
     check("Three-year partnership" in html, "term extended")
     check(html.count("<strong>2028:</strong>") == 3, "2028 rows added")
-    check("&euro;35,000" not in html, "old overlay rate gone")
+    check("35,000" not in html, "old overlay rate gone")
     check("Social content distribution applies to the in-Territory"
           not in html, "social scope reversed")
     check("PFL Lyon 2026, 2027 and 2028" in html, "wristband scope")
     check("all PFL / MMA Events across the term" in html, "content scope")
-    check("&euro;200,000" not in html, "old year 2 fee gone")
+    check("$200,000" not in html, "old year 2 fee gone")
     check(html.count("out-of-Territory") >= 2, "out-of-Territory copy")
     check("youtube.png" not in html, "YouTube logo dereferenced")
     check(html.count("Poland") >= 8, "Poland copy present")
